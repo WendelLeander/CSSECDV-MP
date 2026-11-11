@@ -23,6 +23,9 @@ public class Main {
     public void init(){
         // Initialize a driver object
         sqlite = new SQLite();
+        
+        // Create any missing table and add the security columns if needed
+        sqlite.initSchema();
 
 //        // Create a database
 //        sqlite.createNewDatabase();
