@@ -1,0 +1,14 @@
+# NetBeans build output and per-user settings
+build/
+dist/
+nbproject/private/
+
+# OS junk
+.DS_Store
+__MACOSX/
+Thumbs.db
+
+# SQLite temp files
+*.db-journal
+*.db-wal
+*.db-shm
