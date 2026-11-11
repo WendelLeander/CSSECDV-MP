@@ -547,6 +547,26 @@ public class SQLite {
         return null;
     }
 
+    /**
+     * True only when no account has this username, ignoring upper and lower
+     * case, so "Admin" cannot be registered next to "admin". Any error
+     * answers false, which makes the registration fail.
+     */
+    public boolean isUsernameAvailable(String username) {
+        String sql = "SELECT COUNT(*) AS total FROM users WHERE username = ? COLLATE NOCASE";
+
+        try (Connection conn = connect();
+            PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, username);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return rs.next() && rs.getInt("total") == 0;
+            }
+        } catch (Exception ex) {
+            reportError("isUsernameAvailable", ex);
+            return false;
+        }
+    }
+
     public boolean removeUser(String username) {
         String sql = "DELETE FROM users WHERE username = ?";
 

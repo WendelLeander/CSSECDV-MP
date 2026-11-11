@@ -30,6 +30,7 @@ public class Main {
         // Connect the security components to the database
         AuditLogger.init(sqlite);
         AccessControl.init(sqlite);
+        AuthService.init(sqlite);
 
 //        // Create a database
 //        sqlite.createNewDatabase();

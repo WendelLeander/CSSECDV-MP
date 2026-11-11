@@ -1,5 +1,6 @@
 package View;
 
+import Controller.AuthService;
 import Controller.Main;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
@@ -256,8 +257,8 @@ public class Frame extends javax.swing.JFrame {
         frameView.show(Container, "registerPnl");
     }
     
-    public void registerAction(String username, String password, String confpass){
-        main.sqlite.addUser(username, password);
+    public AuthService.RegisterResult registerAction(String username, char[] password, char[] confpass){
+        return AuthService.register(username, password, confpass);
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
