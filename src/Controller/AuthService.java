@@ -1,7 +1,9 @@
 package Controller;
 
+import Model.User;
+
 /**
- * Account registration (and, from the next step, login).
+ * Account registration and login.
  *
  * Every method fails closed: when anything unexpected happens, nothing is
  * created and a generic result is returned. Password arrays are overwritten
@@ -88,6 +90,159 @@ public final class AuthService {
         } finally {
             PasswordUtil.wipe(password);
             PasswordUtil.wipe(confirmation);
+        }
+    }
+
+    /** The one message shown for every failed login, whatever the cause. */
+    public static final String LOGIN_FAILED_MESSAGE = "Invalid username and/or password";
+
+    /** Consecutive failed logins that disable an account. */
+    public static final int MAX_FAILED_ATTEMPTS = 5;
+
+    /** Outcome of a login attempt. */
+    public static final class LoginResult {
+
+        private final boolean success;
+        private final String lastAttemptTs;
+        private final String lastAttemptStatus;
+
+        private LoginResult(boolean success, String lastAttemptTs, String lastAttemptStatus) {
+            this.success = success;
+            this.lastAttemptTs = lastAttemptTs;
+            this.lastAttemptStatus = lastAttemptStatus;
+        }
+
+        public boolean isSuccess() {
+            return success;
+        }
+
+        /** Failure message. It is the same for every kind of failure. */
+        public String getMessage() {
+            return success ? "" : LOGIN_FAILED_MESSAGE;
+        }
+
+        /**
+         * Report of the last use of the account before this login: the
+         * timestamp and whether that attempt succeeded or failed.
+         */
+        public String getLastUseReport() {
+            if (!success) {
+                return "";
+            }
+            if (lastAttemptTs == null || lastAttemptStatus == null) {
+                return "This is the first recorded login attempt for this account.";
+            }
+            String status = SQLite.STATUS_SUCCESS.equals(lastAttemptStatus) ? "SUCCESSFUL" : "FAILED";
+            return "Last login attempt: " + lastAttemptTs + "\nStatus: " + status;
+        }
+    }
+
+    private static final LoginResult DENIED = new LoginResult(false, null, null);
+
+    /**
+     * Authenticates a user and starts the session.
+     *
+     * The answer starts as "denied" and becomes "granted" only at the very
+     * end, after every check has passed. Any error on the way leaves it
+     * denied. The caller receives the same result for an unknown username, a
+     * wrong password, a disabled account and an internal error, so the
+     * screen cannot be used to find out which usernames exist.
+     *
+     * A password check is always carried out, with a dummy hash when there
+     * is no account to check against, so that each of those cases takes
+     * about the same time.
+     *
+     * Each failure on an existing account adds 1 to its failed-login
+     * counter. The fifth consecutive failure disables the account (role 1).
+     * A successful login resets the counter.
+     */
+    public static synchronized LoginResult login(String username, char[] password) {
+        LoginResult result = DENIED;
+        try {
+            Session.end();
+            if (sqlite == null) {
+                return DENIED;
+            }
+
+            // 1. Input validation. A rejected value is not used for anything.
+            if (!Validator.isValidUsername(username)) {
+                PasswordUtil.dummyVerify(password);
+                AuditLogger.validationFail(null, "login username", "must be 4-20 letters and digits");
+                AuditLogger.authFail(null, "invalid username format");
+                return DENIED;
+            }
+            boolean passwordAcceptable = Validator.isValidLoginPassword(password);
+
+            // 2. Look up the account.
+            User user = sqlite.getUser(username);
+            if (user == null) {
+                PasswordUtil.dummyVerify(password);
+                AuditLogger.authFail(username, "unknown username");
+                return DENIED;
+            }
+
+            // 3. Check the password. This runs for a disabled account too.
+            boolean passwordCorrect;
+            if (passwordAcceptable) {
+                passwordCorrect = PasswordUtil.verify(password, user.getPassword());
+            } else {
+                PasswordUtil.dummyVerify(null);
+                passwordCorrect = false;
+                AuditLogger.validationFail(username, "login password", "length out of range");
+            }
+
+            // 4. A disabled account is refused even with the correct password.
+            boolean disabled = user.getRole() == SQLite.ROLE_DISABLED || user.getLocked() != 0;
+            if (disabled) {
+                sqlite.recordFailedLogin(username, SQLite.now(), 0);
+                AuditLogger.authFail(username, "attempt on disabled account");
+                return DENIED;
+            }
+
+            // 5. Wrong password: count it and lock the account at the limit.
+            if (!passwordCorrect) {
+                int attempts = sqlite.recordFailedLogin(username, SQLite.now(), MAX_FAILED_ATTEMPTS);
+                AuditLogger.authFail(username, "wrong password (failed attempt " + attempts + " of " + MAX_FAILED_ATTEMPTS + ")");
+                if (attempts >= MAX_FAILED_ATTEMPTS) {
+                    AuditLogger.lockout(username, attempts);
+                }
+                return DENIED;
+            }
+
+            // 6. Correct password. The role must still be an active one.
+            if (user.getRole() < SQLite.ROLE_CLIENT || user.getRole() > SQLite.ROLE_ADMIN) {
+                AuditLogger.authFail(username, "account has no valid role");
+                return DENIED;
+            }
+            if (!sqlite.recordSuccessfulLogin(username, SQLite.now())) {
+                AuditLogger.authFail(username, "login could not be recorded");
+                return DENIED;
+            }
+            if (!Session.start(user)) {
+                AuditLogger.authFail(username, "session could not be started");
+                return DENIED;
+            }
+            AuditLogger.authSuccess(username);
+            result = new LoginResult(true, user.getLastAttemptTs(), user.getLastAttemptStatus());
+        } catch (Exception ex) {
+            Session.end();
+            result = DENIED;
+        } finally {
+            PasswordUtil.wipe(password);
+        }
+        return result;
+    }
+
+    /** Ends the session and records the logout. */
+    public static synchronized void logout() {
+        try {
+            if (Session.isActive()) {
+                AuditLogger.logout(Session.getUsername());
+            }
+        } catch (Exception ex) {
+            // The session is ended below in every case.
+        } finally {
+            Session.end();
         }
     }
 }

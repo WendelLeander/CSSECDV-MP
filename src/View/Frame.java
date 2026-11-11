@@ -2,6 +2,7 @@ package View;
 
 import Controller.AuthService;
 import Controller.Main;
+import Controller.Session;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Dimension;
@@ -201,6 +202,7 @@ public class Frame extends javax.swing.JFrame {
     }//GEN-LAST:event_clientBtnActionPerformed
 
     private void logoutBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_logoutBtnActionPerformed
+        AuthService.logout();
         frameView.show(Container, "loginPnl");
     }//GEN-LAST:event_logoutBtnActionPerformed
 
@@ -246,6 +248,11 @@ public class Frame extends javax.swing.JFrame {
     }
     
     public void mainNav(){
+        // The home view is shown only to an authenticated user
+        if(!Session.isActive()){
+            frameView.show(Container, "loginPnl");
+            return;
+        }
         frameView.show(Container, "homePnl");
     }
     
@@ -255,6 +262,10 @@ public class Frame extends javax.swing.JFrame {
     
     public void registerNav(){
         frameView.show(Container, "registerPnl");
+    }
+    
+    public AuthService.LoginResult loginAction(String username, char[] password){
+        return AuthService.login(username, password);
     }
     
     public AuthService.RegisterResult registerAction(String username, char[] password, char[] confpass){
