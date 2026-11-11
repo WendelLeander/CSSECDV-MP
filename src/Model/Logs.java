@@ -22,7 +22,7 @@ public class Logs {
     private String desc;
     private Timestamp timestamp;
 
-    private SimpleDateFormat dateformat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss.SSS");
+    private SimpleDateFormat dateformat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
     
     public Logs(String event, String desc){
         this.event = event;
@@ -46,7 +46,8 @@ public class Logs {
         try {
             this.timestamp = new Timestamp(dateformat.parse(timestamp).getTime());
         } catch (ParseException ex) {
-            ex.printStackTrace();
+            // Unreadable timestamp: use a fixed safe value, show nothing to the user
+            this.timestamp = new Timestamp(0L);
         }
     }
     

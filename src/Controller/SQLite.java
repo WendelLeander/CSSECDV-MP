@@ -8,7 +8,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 
@@ -61,12 +61,21 @@ public class SQLite {
         try {
             String type = (ex == null) ? "Unknown" : ex.getClass().getSimpleName();
             addLogs("ERROR", "SYSTEM", "Database operation failed: " + operation + " (" + type + ")",
-                    new Timestamp(new Date().getTime()).toString());
+                    now());
         } catch (Exception ignored) {
             // Nothing else can safely be done here.
         } finally {
             reportingError = false;
         }
+    }
+
+    /**
+     * The current time as text, always with 3 millisecond digits
+     * (yyyy-MM-dd HH:mm:ss.SSS). Every stored timestamp uses this format so
+     * that it is read back and sorted correctly.
+     */
+    public static String now() {
+        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new Date());
     }
 
     private Connection connect() throws Exception {

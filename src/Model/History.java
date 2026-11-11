@@ -22,7 +22,7 @@ public class History {
     private int stock;
     private Timestamp timestamp;
 
-    private SimpleDateFormat dateformat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss.SSS");
+    private SimpleDateFormat dateformat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
     
     public History(String username, String name, int stock){
         this.username = username;
@@ -39,7 +39,8 @@ public class History {
         try {
             this.timestamp = new Timestamp(dateformat.parse(timestamp).getTime());
         } catch (ParseException ex) {
-            ex.printStackTrace();
+            // Unreadable timestamp: use a fixed safe value, show nothing to the user
+            this.timestamp = new Timestamp(0L);
         }
     }
     

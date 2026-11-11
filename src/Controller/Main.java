@@ -26,6 +26,10 @@ public class Main {
         
         // Create any missing table and add the security columns if needed
         sqlite.initSchema();
+        
+        // Connect the security components to the database
+        AuditLogger.init(sqlite);
+        AccessControl.init(sqlite);
 
 //        // Create a database
 //        sqlite.createNewDatabase();
