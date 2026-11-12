@@ -1,5 +1,7 @@
 package View;
 
+import Controller.AccessControl;
+import Controller.AccessControl.Permission;
 import Controller.AuthService;
 import Controller.Main;
 import Controller.Session;
@@ -182,28 +184,23 @@ public class Frame extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void adminBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_adminBtnActionPerformed
-        adminHomePnl.showPnl("home");
-        contentView.show(Content, "adminHomePnl");
+        showHome(Permission.ACCESS_ADMIN_HOME);
     }//GEN-LAST:event_adminBtnActionPerformed
 
     private void managerBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_managerBtnActionPerformed
-        managerHomePnl.showPnl("home");
-        contentView.show(Content, "managerHomePnl");
+        showHome(Permission.ACCESS_MANAGER_HOME);
     }//GEN-LAST:event_managerBtnActionPerformed
 
     private void staffBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_staffBtnActionPerformed
-        staffHomePnl.showPnl("home");
-        contentView.show(Content, "staffHomePnl");
+        showHome(Permission.ACCESS_STAFF_HOME);
     }//GEN-LAST:event_staffBtnActionPerformed
 
     private void clientBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_clientBtnActionPerformed
-        clientHomePnl.showPnl("home");
-        contentView.show(Content, "clientHomePnl");
+        showHome(Permission.ACCESS_CLIENT_HOME);
     }//GEN-LAST:event_clientBtnActionPerformed
 
     private void logoutBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_logoutBtnActionPerformed
-        AuthService.logout();
-        frameView.show(Container, "loginPnl");
+        forceLogin();
     }//GEN-LAST:event_logoutBtnActionPerformed
 
     public Main main;
@@ -247,13 +244,101 @@ public class Frame extends javax.swing.JFrame {
         this.setVisible(true);
     }
     
+    /**
+     * Opens the home view after a login. The user is sent to the home panel
+     * of their own role, and only the button of that panel is shown.
+     * Without a valid session the user is sent back to the login page.
+     */
     public void mainNav(){
-        // The home view is shown only to an authenticated user
-        if(!Session.isActive()){
-            frameView.show(Container, "loginPnl");
-            return;
+        try {
+            if(!Session.isActive()){
+                forceLogin();
+                return;
+            }
+            int role = Session.getRole();
+            Permission home = AccessControl.homePermissionFor(role);
+            if(home == null || !AccessControl.authorize(home)){
+                forceLogin();
+                return;
+            }
+            resetHomePanels();
+            adminBtn.setVisible(AccessControl.isAllowed(role, Permission.ACCESS_ADMIN_HOME));
+            managerBtn.setVisible(AccessControl.isAllowed(role, Permission.ACCESS_MANAGER_HOME));
+            staffBtn.setVisible(AccessControl.isAllowed(role, Permission.ACCESS_STAFF_HOME));
+            clientBtn.setVisible(AccessControl.isAllowed(role, Permission.ACCESS_CLIENT_HOME));
+            showCard(home);
+            frameView.show(Container, "homePnl");
+        } catch (Exception ex) {
+            forceLogin();
         }
-        frameView.show(Container, "homePnl");
+    }
+    
+    /**
+     * Shows a home panel only when AccessControl grants it to the logged-in
+     * user. A denied request is logged and changes nothing on screen, unless
+     * the session is no longer valid, in which case the user is logged out.
+     */
+    private void showHome(Permission permission){
+        try {
+            if(permission == null || !AccessControl.authorize(permission)){
+                enforceSession();
+                return;
+            }
+            showCard(permission);
+        } catch (Exception ex) {
+            forceLogin();
+        }
+    }
+    
+    private void showCard(Permission permission){
+        if(permission == Permission.ACCESS_ADMIN_HOME){
+            adminHomePnl.reset();
+            contentView.show(Content, "adminHomePnl");
+        } else if(permission == Permission.ACCESS_MANAGER_HOME){
+            managerHomePnl.reset();
+            contentView.show(Content, "managerHomePnl");
+        } else if(permission == Permission.ACCESS_STAFF_HOME){
+            staffHomePnl.reset();
+            contentView.show(Content, "staffHomePnl");
+        } else if(permission == Permission.ACCESS_CLIENT_HOME){
+            clientHomePnl.reset();
+            contentView.show(Content, "clientHomePnl");
+        }
+    }
+    
+    private void resetHomePanels(){
+        adminHomePnl.reset();
+        managerHomePnl.reset();
+        staffHomePnl.reset();
+        clientHomePnl.reset();
+    }
+    
+    /** Sends the user to the login page when the session is no longer valid. */
+    public void enforceSession(){
+        if(!Session.isActive()){
+            forceLogin();
+        }
+    }
+    
+    /**
+     * Ends the session and returns to the login page, the unprivileged
+     * state. Every table and input field is cleared and every home button is
+     * hidden, so nothing of the previous user stays available.
+     */
+    public void forceLogin(){
+        AuthService.logout();
+        try {
+            resetHomePanels();
+            adminBtn.setVisible(false);
+            managerBtn.setVisible(false);
+            staffBtn.setVisible(false);
+            clientBtn.setVisible(false);
+            loginPnl.clearFields();
+            registerPnl.clearFields();
+        } catch (Exception ex) {
+            // The login page is shown below in every case.
+        }
+        frameView.show(Container, "loginPnl");
     }
     
     public void loginNav(){

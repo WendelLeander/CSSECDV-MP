@@ -5,6 +5,8 @@
  */
 package View;
 
+import Controller.AccessControl;
+import Controller.AccessControl.Permission;
 import Controller.SQLite;
 import Model.History;
 import Model.Logs;
@@ -32,28 +34,81 @@ public class ManagerHome extends javax.swing.JPanel {
         initComponents();
     }
     
-    public void init(SQLite sqlite){
-        mgmtHistory = new MgmtHistory(sqlite);
-        mgmtLogs = new MgmtLogs(sqlite);
-        mgmtProduct = new MgmtProduct(sqlite);
-        mgmtUser = new MgmtUser(sqlite);
+    // The role this home panel belongs to and the permissions it works with
+    private static final int PANEL_ROLE = SQLite.ROLE_MANAGER;
+    private static final Permission HOME_PERMISSION = Permission.ACCESS_MANAGER_HOME;
+    private static final Permission HISTORY_PERMISSION = Permission.VIEW_ALL_HISTORY;
     
+    public void init(SQLite sqlite){
         Content.setLayout(contentView);
         Content.add(new Home("WELCOME MANAGER!", new java.awt.Color(153,102,255)), "home");
-        Content.add(mgmtUser, "mgmtUser");
-        Content.add(mgmtHistory, "mgmtHistory");
-        Content.add(mgmtProduct, "mgmtProduct");
-        Content.add(mgmtLogs, "mgmtLogs");
         
-//        UNCOMMENT TO DISABLE BUTTONS
-//        historyBtn.setVisible(false);
-//        usersBtn.setVisible(false);
-//        productsBtn.setVisible(false);
-//        logsBtn.setVisible(false);
+        // Only the panels this role is allowed to use are created and shown.
+        // The buttons of the other panels are hidden.
+        boolean users = AccessControl.isAllowed(PANEL_ROLE, Permission.VIEW_USERS);
+        boolean products = AccessControl.isAllowed(PANEL_ROLE, Permission.VIEW_PRODUCTS);
+        boolean history = AccessControl.isAllowed(PANEL_ROLE, HISTORY_PERMISSION);
+        boolean logs = AccessControl.isAllowed(PANEL_ROLE, Permission.VIEW_LOGS);
+        
+        if(users){
+            mgmtUser = new MgmtUser(sqlite);
+            Content.add(mgmtUser, "mgmtUser");
+        }
+        if(products){
+            mgmtProduct = new MgmtProduct(sqlite);
+            Content.add(mgmtProduct, "mgmtProduct");
+        }
+        if(history){
+            mgmtHistory = new MgmtHistory(sqlite);
+            Content.add(mgmtHistory, "mgmtHistory");
+        }
+        if(logs){
+            mgmtLogs = new MgmtLogs(sqlite);
+            Content.add(mgmtLogs, "mgmtLogs");
+        }
+        
+        usersBtn.setVisible(users);
+        productsBtn.setVisible(products);
+        historyBtn.setVisible(history);
+        logsBtn.setVisible(logs);
     }
     
     public void showPnl(String panelName){
         contentView.show(Content, panelName);
+    }
+    
+    /**
+     * Clears every table, resets the buttons and goes back to the welcome
+     * view, so nothing of one user is left on screen for the next one.
+     */
+    public void reset(){
+        usersBtn.setForeground(Color.black);
+        productsBtn.setForeground(Color.black);
+        historyBtn.setForeground(Color.black);
+        logsBtn.setForeground(Color.black);
+        if(mgmtUser != null) mgmtUser.reset();
+        if(mgmtProduct != null) mgmtProduct.reset();
+        if(mgmtHistory != null) mgmtHistory.reset();
+        if(mgmtLogs != null) mgmtLogs.reset();
+        contentView.show(Content, "home");
+    }
+    
+    /**
+     * Access check done before any panel is opened: the user must be allowed
+     * to use this home panel and the requested panel. A denial is logged by
+     * AccessControl.
+     */
+    private boolean allowed(Permission permission){
+        return AccessControl.authorize(HOME_PERMISSION) && AccessControl.authorize(permission);
+    }
+    
+    /** Goes back to a safe view after a denied request. */
+    private void denied(){
+        reset();
+        java.awt.Window window = javax.swing.SwingUtilities.getWindowAncestor(this);
+        if(window instanceof Frame){
+            ((Frame) window).enforceSession();
+        }
     }
 
     /**
@@ -156,6 +211,10 @@ public class ManagerHome extends javax.swing.JPanel {
     }// </editor-fold>//GEN-END:initComponents
 
     private void usersBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_usersBtnActionPerformed
+        if(!allowed(Permission.VIEW_USERS) || mgmtUser == null){
+            denied();
+            return;
+        }
         mgmtUser.init();
         usersBtn.setForeground(Color.red);
         productsBtn.setForeground(Color.black);
@@ -165,6 +224,10 @@ public class ManagerHome extends javax.swing.JPanel {
     }//GEN-LAST:event_usersBtnActionPerformed
 
     private void productsBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productsBtnActionPerformed
+        if(!allowed(Permission.VIEW_PRODUCTS) || mgmtProduct == null){
+            denied();
+            return;
+        }
         mgmtProduct.init();
         usersBtn.setForeground(Color.black);
         productsBtn.setForeground(Color.red);
@@ -174,6 +237,10 @@ public class ManagerHome extends javax.swing.JPanel {
     }//GEN-LAST:event_productsBtnActionPerformed
 
     private void historyBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_historyBtnActionPerformed
+        if(!allowed(HISTORY_PERMISSION) || mgmtHistory == null){
+            denied();
+            return;
+        }
         mgmtHistory.init();
         usersBtn.setForeground(Color.black);
         productsBtn.setForeground(Color.black);
@@ -183,6 +250,10 @@ public class ManagerHome extends javax.swing.JPanel {
     }//GEN-LAST:event_historyBtnActionPerformed
 
     private void logsBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_logsBtnActionPerformed
+        if(!allowed(Permission.VIEW_LOGS) || mgmtLogs == null){
+            denied();
+            return;
+        }
         mgmtLogs.init();
         usersBtn.setForeground(Color.black);
         productsBtn.setForeground(Color.black);

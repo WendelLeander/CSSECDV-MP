@@ -12,6 +12,12 @@ public class Login extends javax.swing.JPanel {
         initComponents();
     }
 
+    /** Empties both input fields. */
+    public void clearFields() {
+        usernameFld.setText("");
+        passwordFld.setText("");
+    }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {

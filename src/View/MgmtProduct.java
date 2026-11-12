@@ -35,6 +35,11 @@ public class MgmtProduct extends javax.swing.JPanel {
 //        deleteBtn.setVisible(false);
     }
 
+    /** Removes every row, so no data stays on screen after a logout. */
+    public void reset(){
+        tableModel.setRowCount(0);
+    }
+
     public void init(){
         //      CLEAR TABLE
         for(int nCtr = tableModel.getRowCount(); nCtr > 0; nCtr--){

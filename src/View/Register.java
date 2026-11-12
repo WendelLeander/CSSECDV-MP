@@ -12,6 +12,13 @@ public class Register extends javax.swing.JPanel {
         initComponents();
     }
 
+    /** Empties every input field. */
+    public void clearFields() {
+        usernameFld.setText("");
+        passwordFld.setText("");
+        confpassFld.setText("");
+    }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
