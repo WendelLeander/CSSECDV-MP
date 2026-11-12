@@ -5,9 +5,12 @@
  */
 package View;
 
+import Controller.Actions;
 import Controller.SQLite;
+import Controller.Session;
 import Model.Logs;
 import java.util.ArrayList;
+import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
 
 /**
@@ -25,6 +28,9 @@ public class MgmtLogs extends javax.swing.JPanel {
         tableModel = (DefaultTableModel)table.getModel();
         table.getTableHeader().setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 14));
         
+        // Wide enough to show the full event name
+        table.getColumnModel().getColumn(0).setPreferredWidth(170);
+        
 //        UNCOMMENT TO DISABLE BUTTONS
 //        clearBtn.setVisible(false);
 //        debugBtn.setVisible(false);
@@ -36,13 +42,9 @@ public class MgmtLogs extends javax.swing.JPanel {
     }
 
     public void init(){
-        //      CLEAR TABLE
-        for(int nCtr = tableModel.getRowCount(); nCtr > 0; nCtr--){
-            tableModel.removeRow(0);
-        }
+        reset();
         
-//      LOAD CONTENTS
-        ArrayList<Logs> logs = sqlite.getLogs();
+        ArrayList<Logs> logs = Actions.listLogs();
         for(int nCtr = 0; nCtr < logs.size(); nCtr++){
             tableModel.addRow(new Object[]{
                 logs.get(nCtr).getEvent(), 
@@ -63,7 +65,6 @@ public class MgmtLogs extends javax.swing.JPanel {
         jScrollPane1 = new javax.swing.JScrollPane();
         table = new javax.swing.JTable();
         clearBtn = new javax.swing.JButton();
-        debugBtn = new javax.swing.JButton();
 
         table.setFont(new java.awt.Font("SansSerif", 0, 14)); // NOI18N
         table.setModel(new javax.swing.table.DefaultTableModel(
@@ -104,16 +105,6 @@ public class MgmtLogs extends javax.swing.JPanel {
             }
         });
 
-        debugBtn.setBackground(new java.awt.Color(255, 255, 255));
-        debugBtn.setFont(new java.awt.Font("Tahoma", 1, 14)); // NOI18N
-        debugBtn.setText("ENABLE/DISABLE DEBUG MODE");
-        debugBtn.setToolTipText("");
-        debugBtn.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                debugBtnActionPerformed(evt);
-            }
-        });
-
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
         layout.setHorizontalGroup(
@@ -122,10 +113,7 @@ public class MgmtLogs extends javax.swing.JPanel {
                 .addGap(0, 0, 0)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 412, Short.MAX_VALUE)
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(debugBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addGap(0, 0, 0)
-                        .addComponent(clearBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
+                    .addComponent(clearBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -133,27 +121,32 @@ public class MgmtLogs extends javax.swing.JPanel {
                 .addGap(0, 0, 0)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 222, Short.MAX_VALUE)
                 .addGap(0, 0, 0)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(debugBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 41, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(clearBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 41, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addComponent(clearBtn, javax.swing.GroupLayout.PREFERRED_SIZE, 41, javax.swing.GroupLayout.PREFERRED_SIZE))
         );
     }// </editor-fold>//GEN-END:initComponents
 
     private void clearBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_clearBtnActionPerformed
-        
-    }//GEN-LAST:event_clearBtnActionPerformed
+        try {
+            int result = JOptionPane.showConfirmDialog(this, "Are you sure you want to delete every log entry?", "CLEAR LOGS", JOptionPane.YES_NO_OPTION);
 
-    private void debugBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_debugBtnActionPerformed
-        if(sqlite.DEBUG_MODE == 1)
-            sqlite.DEBUG_MODE = 0;
-        else
-            sqlite.DEBUG_MODE = 1;
-    }//GEN-LAST:event_debugBtnActionPerformed
+            if (result == JOptionPane.YES_OPTION) {
+                char[] ownPassword = Dialogs.askPassword(this);
+                if (ownPassword != null) {
+                    Dialogs.show(this, Actions.clearLogs(ownPassword), "CLEAR LOGS");
+                }
+            }
+        } catch (Exception ex) {
+            Dialogs.error(this, "logs panel");
+        }
+        if(Session.isActive()){
+            init();
+        }
+        Dialogs.enforceSession(this);
+    }//GEN-LAST:event_clearBtnActionPerformed
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton clearBtn;
-    private javax.swing.JButton debugBtn;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JTable table;
     // End of variables declaration//GEN-END:variables

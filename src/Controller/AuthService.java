@@ -233,6 +233,52 @@ public final class AuthService {
         return result;
     }
 
+    /**
+     * Checks the password of the logged-in user again, right before a
+     * critical operation.
+     *
+     * A wrong password counts as a failed login: it is logged, it adds 1 to
+     * the failed-login counter and the fifth consecutive failure disables
+     * the account and ends the session. A correct password resets the
+     * counter.
+     */
+    public static synchronized boolean reauthenticate(char[] password) {
+        boolean confirmed = false;
+        try {
+            if (sqlite == null || !Session.isActive()) {
+                return false;
+            }
+            String username = Session.getUsername();
+            User user = sqlite.getUser(username);
+            if (user == null || user.getRole() != Session.getRole() || user.getLocked() != 0) {
+                PasswordUtil.dummyVerify(password);
+                Session.end();
+                AuditLogger.authFail(username, "re-authentication on an invalid session");
+                return false;
+            }
+            boolean correct = Validator.isValidLoginPassword(password) && PasswordUtil.verify(password, user.getPassword());
+            if (!correct) {
+                int attempts = sqlite.recordFailedLogin(username, SQLite.now(), MAX_FAILED_ATTEMPTS);
+                AuditLogger.authFail(username, "re-authentication failed (failed attempt " + attempts + " of " + MAX_FAILED_ATTEMPTS + ")");
+                if (attempts >= MAX_FAILED_ATTEMPTS) {
+                    AuditLogger.lockout(username, attempts);
+                    Session.end();
+                }
+                return false;
+            }
+            if (!sqlite.resetFailedAttempts(username)) {
+                return false;
+            }
+            AuditLogger.log(AuditLogger.AUTH_SUCCESS, username, "Re-authentication successful");
+            confirmed = true;
+        } catch (Exception ex) {
+            confirmed = false;
+        } finally {
+            PasswordUtil.wipe(password);
+        }
+        return confirmed;
+    }
+
     /** Ends the session and records the logout. */
     public static synchronized void logout() {
         try {

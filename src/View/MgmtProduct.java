@@ -5,7 +5,11 @@
  */
 package View;
 
+import Controller.AccessControl;
+import Controller.AccessControl.Permission;
+import Controller.Actions;
 import Controller.SQLite;
+import Controller.Session;
 import Model.Product;
 import java.util.ArrayList;
 import javax.swing.JOptionPane;
@@ -41,19 +45,30 @@ public class MgmtProduct extends javax.swing.JPanel {
     }
 
     public void init(){
-        //      CLEAR TABLE
-        for(int nCtr = tableModel.getRowCount(); nCtr > 0; nCtr--){
-            tableModel.removeRow(0);
-        }
+        reset();
         
-//      LOAD CONTENTS
-        ArrayList<Product> products = sqlite.getProduct();
+        // Each button is shown only to a role that holds its permission
+        int role = Session.getRole();
+        purchaseBtn.setVisible(AccessControl.isAllowed(role, Permission.PURCHASE_PRODUCT));
+        addBtn.setVisible(AccessControl.isAllowed(role, Permission.ADD_PRODUCT));
+        editBtn.setVisible(AccessControl.isAllowed(role, Permission.EDIT_PRODUCT));
+        deleteBtn.setVisible(AccessControl.isAllowed(role, Permission.DELETE_PRODUCT));
+        
+        ArrayList<Product> products = Actions.listProducts();
         for(int nCtr = 0; nCtr < products.size(); nCtr++){
             tableModel.addRow(new Object[]{
                 products.get(nCtr).getName(), 
                 products.get(nCtr).getStock(), 
                 products.get(nCtr).getPrice()});
         }
+    }
+    
+    /** Reloads the table when the session is still valid, otherwise logs out. */
+    private void refresh(){
+        if(Session.isActive()){
+            init();
+        }
+        Dialogs.enforceSession(this);
     }
     
     public void designer(JTextField component, String text){
@@ -179,76 +194,95 @@ public class MgmtProduct extends javax.swing.JPanel {
     }// </editor-fold>//GEN-END:initComponents
 
     private void purchaseBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_purchaseBtnActionPerformed
-        if(table.getSelectedRow() >= 0){
-            JTextField stockFld = new JTextField("0");
-            designer(stockFld, "PRODUCT STOCK");
+        try {
+            if(table.getSelectedRow() >= 0){
+                String name = String.valueOf(tableModel.getValueAt(table.getSelectedRow(), 0));
+                JTextField stockFld = new JTextField();
+                designer(stockFld, "QUANTITY");
 
-            Object[] message = {
-                "How many " + tableModel.getValueAt(table.getSelectedRow(), 0) + " do you want to purchase?", stockFld
-            };
+                Object[] message = {
+                    "How many " + name + " do you want to purchase?", stockFld
+                };
 
-            int result = JOptionPane.showConfirmDialog(null, message, "PURCHASE PRODUCT", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
+                int result = JOptionPane.showConfirmDialog(this, message, "PURCHASE PRODUCT", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
 
-            if (result == JOptionPane.OK_OPTION) {
-                System.out.println(stockFld.getText());
+                if (result == JOptionPane.OK_OPTION) {
+                    Dialogs.show(this, Actions.purchase(name, stockFld.getText()), "PURCHASE PRODUCT");
+                }
             }
+        } catch (Exception ex) {
+            Dialogs.error(this, "product panel");
         }
+        refresh();
     }//GEN-LAST:event_purchaseBtnActionPerformed
 
     private void addBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addBtnActionPerformed
-        JTextField nameFld = new JTextField();
-        JTextField stockFld = new JTextField();
-        JTextField priceFld = new JTextField();
-
-        designer(nameFld, "PRODUCT NAME");
-        designer(stockFld, "PRODUCT STOCK");
-        designer(priceFld, "PRODUCT PRICE");
-
-        Object[] message = {
-            "Insert New Product Details:", nameFld, stockFld, priceFld
-        };
-
-        int result = JOptionPane.showConfirmDialog(null, message, "ADD PRODUCT", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
-
-        if (result == JOptionPane.OK_OPTION) {
-            System.out.println(nameFld.getText());
-            System.out.println(stockFld.getText());
-            System.out.println(priceFld.getText());
-        }
-    }//GEN-LAST:event_addBtnActionPerformed
-
-    private void editBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_editBtnActionPerformed
-        if(table.getSelectedRow() >= 0){
-            JTextField nameFld = new JTextField(tableModel.getValueAt(table.getSelectedRow(), 0) + "");
-            JTextField stockFld = new JTextField(tableModel.getValueAt(table.getSelectedRow(), 1) + "");
-            JTextField priceFld = new JTextField(tableModel.getValueAt(table.getSelectedRow(), 2) + "");
+        try {
+            JTextField nameFld = new JTextField();
+            JTextField stockFld = new JTextField();
+            JTextField priceFld = new JTextField();
 
             designer(nameFld, "PRODUCT NAME");
             designer(stockFld, "PRODUCT STOCK");
             designer(priceFld, "PRODUCT PRICE");
 
             Object[] message = {
-                "Edit Product Details:", nameFld, stockFld, priceFld
+                "Insert New Product Details:", nameFld, stockFld, priceFld
             };
 
-            int result = JOptionPane.showConfirmDialog(null, message, "EDIT PRODUCT", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
+            int result = JOptionPane.showConfirmDialog(this, message, "ADD PRODUCT", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
 
             if (result == JOptionPane.OK_OPTION) {
-                System.out.println(nameFld.getText());
-                System.out.println(stockFld.getText());
-                System.out.println(priceFld.getText());
+                Dialogs.show(this, Actions.addProduct(nameFld.getText(), stockFld.getText(), priceFld.getText()), "ADD PRODUCT");
             }
+        } catch (Exception ex) {
+            Dialogs.error(this, "product panel");
         }
+        refresh();
+    }//GEN-LAST:event_addBtnActionPerformed
+
+    private void editBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_editBtnActionPerformed
+        try {
+            if(table.getSelectedRow() >= 0){
+                String name = String.valueOf(tableModel.getValueAt(table.getSelectedRow(), 0));
+                JTextField nameFld = new JTextField(name);
+                JTextField stockFld = new JTextField(tableModel.getValueAt(table.getSelectedRow(), 1) + "");
+                JTextField priceFld = new JTextField(tableModel.getValueAt(table.getSelectedRow(), 2) + "");
+
+                designer(nameFld, "PRODUCT NAME");
+                designer(stockFld, "PRODUCT STOCK");
+                designer(priceFld, "PRODUCT PRICE");
+
+                Object[] message = {
+                    "Edit Product Details:", nameFld, stockFld, priceFld
+                };
+
+                int result = JOptionPane.showConfirmDialog(this, message, "EDIT PRODUCT", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
+
+                if (result == JOptionPane.OK_OPTION) {
+                    Dialogs.show(this, Actions.editProduct(name, nameFld.getText(), stockFld.getText(), priceFld.getText()), "EDIT PRODUCT");
+                }
+            }
+        } catch (Exception ex) {
+            Dialogs.error(this, "product panel");
+        }
+        refresh();
     }//GEN-LAST:event_editBtnActionPerformed
 
     private void deleteBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_deleteBtnActionPerformed
-        if(table.getSelectedRow() >= 0){
-            int result = JOptionPane.showConfirmDialog(null, "Are you sure you want to delete " + tableModel.getValueAt(table.getSelectedRow(), 0) + "?", "DELETE PRODUCT", JOptionPane.YES_NO_OPTION);
-            
-            if (result == JOptionPane.YES_OPTION) {
-                System.out.println(tableModel.getValueAt(table.getSelectedRow(), 0));
+        try {
+            if(table.getSelectedRow() >= 0){
+                String name = String.valueOf(tableModel.getValueAt(table.getSelectedRow(), 0));
+                int result = JOptionPane.showConfirmDialog(this, "Are you sure you want to delete " + name + "?", "DELETE PRODUCT", JOptionPane.YES_NO_OPTION);
+
+                if (result == JOptionPane.YES_OPTION) {
+                    Dialogs.show(this, Actions.deleteProduct(name), "DELETE PRODUCT");
+                }
             }
+        } catch (Exception ex) {
+            Dialogs.error(this, "product panel");
         }
+        refresh();
     }//GEN-LAST:event_deleteBtnActionPerformed
 
 

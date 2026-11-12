@@ -35,10 +35,6 @@ public class SQLite {
     public static final String STATUS_SUCCESS = "SUCCESS";
     public static final String STATUS_FAILED = "FAILED";
 
-    // Kept only so the existing MgmtLogs debug button still compiles.
-    // It no longer controls any output.
-    public int DEBUG_MODE = 0;
-
     String driverURL = "jdbc:sqlite:" + "database.db";
 
     // Guards against endless recursion when writing an ERROR log itself fails.
@@ -395,16 +391,38 @@ public class SQLite {
         return null;
     }
 
+    /**
+     * Changes a product. When the name changes, the purchase history rows of
+     * that product are renamed in the same transaction, so the history keeps
+     * pointing at the product.
+     */
     public boolean updateProduct(String currentName, String newName, int stock, double price) {
-        String sql = "UPDATE product SET name = ?, stock = ?, price = ? WHERE name = ?";
+        String productSql = "UPDATE product SET name = ?, stock = ?, price = ? WHERE name = ?";
+        String historySql = "UPDATE history SET name = ? WHERE name = ?";
 
-        try (Connection conn = connect();
-            PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, newName);
-            pstmt.setInt(2, stock);
-            pstmt.setDouble(3, price);
-            pstmt.setString(4, currentName);
-            return pstmt.executeUpdate() == 1;
+        try (Connection conn = connect()) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement product = conn.prepareStatement(productSql);
+                PreparedStatement history = conn.prepareStatement(historySql)) {
+                product.setString(1, newName);
+                product.setInt(2, stock);
+                product.setDouble(3, price);
+                product.setString(4, currentName);
+                if (product.executeUpdate() != 1) {
+                    conn.rollback();
+                    return false;
+                }
+                if (!currentName.equals(newName)) {
+                    history.setString(1, newName);
+                    history.setString(2, currentName);
+                    history.executeUpdate();
+                }
+                conn.commit();
+                return true;
+            } catch (Exception ex) {
+                conn.rollback();
+                throw ex;
+            }
         } catch (Exception ex) {
             reportError("updateProduct", ex);
             return false;
@@ -727,6 +745,20 @@ public class SQLite {
         } catch (Exception ex) {
             reportError("recordFailedLogin", ex);
             return -1;
+        }
+    }
+
+    /** Sets the failed-login counter of an account back to 0. */
+    public boolean resetFailedAttempts(String username) {
+        String sql = "UPDATE users SET failed_attempts = 0 WHERE username = ?";
+
+        try (Connection conn = connect();
+            PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, username);
+            return pstmt.executeUpdate() == 1;
+        } catch (Exception ex) {
+            reportError("resetFailedAttempts", ex);
+            return false;
         }
     }
 

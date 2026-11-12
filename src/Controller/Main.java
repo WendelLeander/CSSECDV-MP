@@ -24,6 +24,7 @@ public class Main {
         AuditLogger.init(sqlite);
         AccessControl.init(sqlite);
         AuthService.init(sqlite);
+        Actions.init(sqlite);
         
         // Initialize User Interface
         Frame frame = new Frame();

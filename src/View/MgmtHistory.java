@@ -5,7 +5,9 @@
  */
 package View;
 
+import Controller.Actions;
 import Controller.SQLite;
+import Controller.Session;
 import Model.History;
 import Model.Product;
 import java.util.ArrayList;
@@ -45,23 +47,17 @@ public class MgmtHistory extends javax.swing.JPanel {
     }
 
     public void init(){
-//      CLEAR TABLE
-        for(int nCtr = tableModel.getRowCount(); nCtr > 0; nCtr--){
-            tableModel.removeRow(0);
-        }
+        reset();
         
-//      LOAD CONTENTS
-        ArrayList<History> history = sqlite.getHistory();
-        for(int nCtr = 0; nCtr < history.size(); nCtr++){
-            Product product = sqlite.getProduct(history.get(nCtr).getName());
-            tableModel.addRow(new Object[]{
-                history.get(nCtr).getUsername(), 
-                history.get(nCtr).getName(), 
-                history.get(nCtr).getStock(), 
-                product.getPrice(), 
-                product.getPrice() * history.get(nCtr).getStock(), 
-                history.get(nCtr).getTimestamp()
-            });
+        // Actions decides which rows this user may see: all purchases for a
+        // Manager, only the user's own purchases for a Client
+        showRows(Actions.historyRows());
+    }
+    
+    private void showRows(ArrayList<Object[]> rows){
+        reset();
+        for(int nCtr = 0; nCtr < rows.size(); nCtr++){
+            tableModel.addRow(rows.get(nCtr));
         }
     }
     
@@ -164,45 +160,37 @@ public class MgmtHistory extends javax.swing.JPanel {
     }// </editor-fold>//GEN-END:initComponents
 
     private void searchBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_searchBtnActionPerformed
-        JTextField searchFld = new JTextField("0");
-        designer(searchFld, "SEARCH USERNAME OR PRODUCT");
+        try {
+            JTextField searchFld = new JTextField();
+            designer(searchFld, "SEARCH USERNAME OR PRODUCT");
 
-        Object[] message = {
-            searchFld
-        };
+            Object[] message = {
+                searchFld
+            };
 
-        int result = JOptionPane.showConfirmDialog(null, message, "SEARCH HISTORY", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
+            int result = JOptionPane.showConfirmDialog(this, message, "SEARCH HISTORY", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
 
-        if (result == JOptionPane.OK_OPTION) {
-//          CLEAR TABLE
-            for(int nCtr = tableModel.getRowCount(); nCtr > 0; nCtr--){
-                tableModel.removeRow(0);
-            }
-
-//          LOAD CONTENTS
-            ArrayList<History> history = sqlite.getHistory();
-            for(int nCtr = 0; nCtr < history.size(); nCtr++){
-                if(searchFld.getText().contains(history.get(nCtr).getUsername()) || 
-                   history.get(nCtr).getUsername().contains(searchFld.getText()) || 
-                   searchFld.getText().contains(history.get(nCtr).getName()) || 
-                   history.get(nCtr).getName().contains(searchFld.getText())){
-                
-                    Product product = sqlite.getProduct(history.get(nCtr).getName());
-                    tableModel.addRow(new Object[]{
-                        history.get(nCtr).getUsername(), 
-                        history.get(nCtr).getName(), 
-                        history.get(nCtr).getStock(), 
-                        product.getPrice(), 
-                        product.getPrice() * history.get(nCtr).getStock(), 
-                        history.get(nCtr).getTimestamp()
-                    });
+            if (result == JOptionPane.OK_OPTION) {
+                ArrayList<Object[]> rows = Actions.searchHistoryRows(searchFld.getText());
+                if(rows == null){
+                    Dialogs.warn(this, Actions.MSG_SEARCH, "SEARCH HISTORY");
+                } else {
+                    showRows(rows);
                 }
             }
+        } catch (Exception ex) {
+            Dialogs.error(this, "history panel");
         }
+        Dialogs.enforceSession(this);
     }//GEN-LAST:event_searchBtnActionPerformed
 
     private void reloadBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_reloadBtnActionPerformed
-        init();
+        try {
+            init();
+        } catch (Exception ex) {
+            Dialogs.error(this, "history panel");
+        }
+        Dialogs.enforceSession(this);
     }//GEN-LAST:event_reloadBtnActionPerformed
 
 
