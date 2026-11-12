@@ -50,7 +50,7 @@ public class MgmtLogs extends javax.swing.JPanel {
                 logs.get(nCtr).getEvent(), 
                 logs.get(nCtr).getUsername(), 
                 logs.get(nCtr).getDesc(), 
-                logs.get(nCtr).getTimestamp()});
+                SQLite.format(logs.get(nCtr).getTimestamp())});
         }
     }
     /**

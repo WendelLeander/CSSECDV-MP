@@ -238,7 +238,7 @@ public final class Actions {
             price = product.getPrice();
             total = product.getPrice() * history.getStock();
         }
-        return new Object[]{history.getUsername(), history.getName(), history.getStock(), price, total, history.getTimestamp()};
+        return new Object[]{history.getUsername(), history.getName(), history.getStock(), price, total, SQLite.format(history.getTimestamp())};
     }
 
     /** Rows for the history table. */

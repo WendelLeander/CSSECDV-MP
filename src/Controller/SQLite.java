@@ -74,6 +74,17 @@ public class SQLite {
         return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new Date());
     }
 
+    /**
+     * A stored time as text for the tables on screen, in the same fixed
+     * format (yyyy-MM-dd HH:mm:ss.SSS). Returns an empty text for no time.
+     */
+    public static String format(Date time) {
+        if (time == null) {
+            return "";
+        }
+        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(time);
+    }
+
     private Connection connect() throws Exception {
         return DriverManager.getConnection(driverURL);
     }
