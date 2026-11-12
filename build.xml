@@ -11,6 +11,14 @@
     <description>Builds, tests, and runs the project CSSECDV.</description>
     <import file="nbproject/build-impl.xml"/>
     <!--
+        After the JAR is built, put a clean copy of the database next to it,
+        so the dist folder holds everything the program needs to run:
+        CSSECDV.jar, lib/sqlite-jdbc-3.23.1.jar and database.db.
+    -->
+    <target name="-post-jar">
+        <copy file="database.demo.db" tofile="${dist.dir}/database.db" overwrite="true"/>
+    </target>
+    <!--
 
     There exist several targets which are by default empty and which can be 
     used for execution of your tasks. These targets are usually executed 
